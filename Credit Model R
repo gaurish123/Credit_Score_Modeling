@@ -1,0 +1,314 @@
+data<-read.csv("Credit Score Model\\public.csv", stringsAsFactors = FALSE)
+new_data<-data
+
+
+new_data[new_data$ï..DOB==99,"ï..DOB"] <-median(new_data[new_data$ï..DOB!=99,"ï..DOB"])
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+new_data[new_data$AES=="Z","AES"] <-getmode(new_data[new_data$AES!="Z","AES"])
+new_data[new_data$RES=="Z","RES"] <-getmode(new_data[new_data$RES!="Z","RES"])
+new_data[new_data$DHVAL=="","DHVAL"]<-median(new_data[new_data$DHVAL!="","DHVAL"],na.rm = TRUE)
+new_data[new_data$DHVAL==000001,"DHVAL"]<-0
+new_data[new_data$DMORT=="","DMORT"]<-median(new_data[new_data$DMORT!="","DMORT"],na.rm = TRUE)
+new_data[new_data$DMORT==000001,"DMORT"]<-0
+new_data$AGE<-99-new_data$ï..DOB
+new_data$ï..DOB<-NULL
+
+
+##correlation between quantitative variables
+quant<-new_data[,c(1,2,4,6,8,9,10,11,12,13,15)]
+cor(quant)
+cor.plot(quant)
+correlations_status <- matrix(data=NA,nrow=15,ncol=15)
+correlations_value<-matrix(data=NA,nrow=15,ncol=15)
+for (i in c(1:15)){
+  for (j in c(1:15)){
+    c<-table(as.vector(unlist(new_data[i])),as.vector(unlist(new_data[j])))
+    c<-chisq.test(c)
+    if (c$p.value<0.05){
+      correlations_status[i,j]<-'Significant'
+      correlations_value[i,j]<-round(c$p.value,3)
+    }else{
+      correlations_status[i,j]<-'Not Significant'
+      correlations_value[i,j]<-round(c$p.value,3)
+    }
+  }
+}
+rownames(correlations_status)<-colnames(new_data)
+colnames(correlations_status)<-colnames(new_data)
+rownames(correlations_value)<-colnames(new_data)
+colnames(correlations_value)<-colnames(new_data)
+
+
+
+addmargins(table(new_data$AGE,new_data$BAD))
+t1<-table(new_data$AGE,new_data$BAD)
+a1<-chisq.test(t1)
+a1$p.value
+
+
+t1<-table(new_data$AES,new_data$RES)
+a1<-chisq.test(t1)
+a1$p.value
+
+
+t2<-table(new_data$NKID,new_data$BAD)
+chisq.test(t2)  #insignificant
+
+t3<-table(new_data$DEP,new_data$BAD)
+chisq.test(t3) #insignificant
+
+t4<-table(new_data$PHON,new_data$AGE)
+chisq.test(t4) #insignificant
+
+t5<-table(new_data$SINC,new_data$BAD)
+chisq.test(t5)  #insignifiant
+
+t6<-table(new_data$AES,new_data$BAD)
+chisq.test(t6)  #significant
+
+t7<-table(data$RES,new_data$BAD)
+chisq.test(t7)  #signifianct
+
+t8<-table(new_data$DAINC<-new_data$BAD)
+chisq.test(t8)
+
+
+t9<-table(new_data$DHVAL<-new_data$BAD)
+chisq.test(t9)
+
+t10<-table(new_data$DMORT<-new_data$BAD)
+chisq.test(t10)
+
+t11<-table(new_data$DOUTM<-new_data$BAD)
+chisq.test(t11)
+
+t12<-table(new_data$DOUTL<-new_data$BAD)
+chisq.test(t12)
+
+
+t13<-table(new_data$DOUTHP<-new_data$BAD)
+chisq.test(t13)
+
+t14<-table(new_data$DOUTCC<-new_data$BAD)
+chisq.test(t14)
+
+
+
+
+
+
+
+
+
+
+new_data$PHON<-as.factor(new_data$PHON)
+new_data$AES<-as.factor(new_data$AES)
+new_data$RES<-as.factor(new_data$RES)
+
+model1<-glm(new_data$BAD~., data=new_data, family="binomial")
+summary(model1)
+vif(model1)
+predict_model1<-predict(model1, data=new_data[-14])
+prob<-exp(predict_model1)/(1+exp(predict_model1))
+sensitivity<-0
+specificity<-0
+for (c in seq(min(prob),max(prob),0.001)){
+  x=as.matrix(table(new_data$BAD,prob>c))
+  sensitivity_1=x[2,2]/(x[2,1]+x[2,2])
+  sensitivity=c(sensitivity,sensitivity_1)
+  specificity_1=x[1,1]/(x[1,1]+x[1,2])
+  specificity=c(specificity,specificity_1)
+  if (sensitivity_1>0.65 & specificity_1>0.60){
+    print(c)
+  }
+}
+t1<-table(new_data$BAD,prob>0.262)
+sensitivity<-t1[2,2]/(t1[2,1]+t1[2,2])
+specificity<-t1[1,1]/(t1[1,1]+t1[1,2])
+accuracy<-(t1[1,1]+t1[2,2])/(t1[1,1]+t1[1,2]+t1[2,1]+t1[2,2])
+sensitivity
+specificity
+accuracy
+
+model2<-stepAIC(glm(new_data$BAD~., data=new_data, family="binomial"))
+summary(model2)
+predict_model2<-predict(model2, data=new_data[-14])
+prob<-exp(predict_model2)/(1+exp(predict_model2))
+sensitivity<-0
+specificity<-0
+for (c in seq(min(prob),max(prob),0.001)){
+  x=as.matrix(table(new_data$BAD,prob>c))
+  sensitivity_1=x[2,2]/(x[2,1]+x[2,2])
+  sensitivity=c(sensitivity,sensitivity_1)
+  specificity_1=x[1,1]/(x[1,1]+x[1,2])
+  specificity=c(specificity,specificity_1)
+  if (sensitivity_1>0.65 & specificity_1>0.60){
+    print(c)
+  }
+}
+t1<-table(new_data$BAD,prob>0.262)
+sensitivity<-t1[2,2]/(t1[2,1]+t1[2,2])
+specificity<-t1[1,1]/(t1[1,1]+t1[1,2])
+accuracy<-(t1[1,1]+t1[2,2])/(t1[1,1]+t1[1,2]+t1[2,1]+t1[2,2])
+sensitivity
+specificity
+accuracy
+
+
+#applying lasso
+x_matrix<-model.matrix(BAD~.,new_data)[,-1]
+cv_lasso_model1<- cv.glmnet(x_matrix, new_data$BAD,type.measure = "deviance" , 
+                            alpha=1,family="binomial", nfolds = 10, standardize = TRUE)
+plot(cv_lasso_model1)
+cv_predict1 = predict(cv_lasso_model1, s=cv_lasso_model1$lambda.1se, newx=x_matrix, type="response" )
+coef(cv_lasso_model1,cv_lasso_model1$lambda.min)
+coef(cv_lasso_model1,cv_lasso_model1$lambda.1se)
+
+#using lasso variable in ridge
+model3<-glm(BAD~DAINC+AES+RES+AGE, data=new_data,family = "binomial")   ###best model
+predict_model3<-predict(model3,data=new_data[-14])
+prob<-exp(predict_model3)/(1+exp(predict_model3))
+sensitivity<-0
+specificity<-0
+for (c in seq(min(prob),max(prob),0.001)){
+  x=as.matrix(table(new_data$BAD,prob>c))
+  sensitivity_1=x[2,2]/(x[2,1]+x[2,2])
+  sensitivity=c(sensitivity,sensitivity_1)
+  specificity_1=x[1,1]/(x[1,1]+x[1,2])
+  specificity=c(specificity,specificity_1)
+  if (sensitivity_1>0.65 & specificity_1>0.60){
+    print(c)
+  }
+}
+t1<-table(new_data$BAD,prob>0.249)
+sensitivity<-t1[2,2]/(t1[2,1]+t1[2,2])
+specificity<-t1[1,1]/(t1[1,1]+t1[1,2])
+accuracy<-(t1[1,1]+t1[2,2])/(t1[1,1]+t1[1,2]+t1[2,1]+t1[2,2])
+sensitivity
+specificity
+accuracy
+summary(model3)
+
+
+
+
+#applying ridge
+x_matrix<-model.matrix(BAD~.,new_data)[,-1]
+cv_ridge_model1<- cv.glmnet(x_matrix, new_data$BAD,type.measure = "deviance" ,
+                            alpha=0,family="binomial", nfolds = 10, standardize = TRUE)
+plot(cv_ridge_model1)
+plot(cv_ridge_model1$glmnet.fit,"lambda")
+#cv_predict1 = predict(cv_lasso_model1, s=cv_lasso_model1$lambda.1se, newx=x_s, type="response" )
+coef(cv_ridge_model1,cv_ridge_model1$lambda.min)
+coef(cv_ridge_model1,cv_ridge_model1$lambda.1se)
+
+
+#applying lasso variable in glm
+#using caTools
+split = sample.split(new_data$BAD, SplitRatio = 1000/1225)
+training_data_glm = subset(new_data, split == TRUE)
+test_data_glm = subset(new_data, split == FALSE)
+#model4<-glm(training_data_glm$BAD~training_data_glm$AGE+training_data_glm$DAINC+
+#              +training_data_glm$RES,data=training_data_glm, family="binomial")
+
+
+model4<-glm(BAD~AGE+DAINC+RES+AES,data=training_data_glm, family="binomial")
+summary(model4)
+par(mfrow=c(2,2))
+plot(model4)
+
+
+#plot(model3)
+
+model4_predict<-predict(model4, test_data_glm[,c(15,6,5,7)])
+prob<-exp(model4_predict)/(1+exp(model4_predict))
+
+sensitivity<-0
+specificity<-0
+c1<-seq(min(prob),max(prob),0.01)
+for (c in seq(min(prob),max(prob),0.01)){
+  x=as.matrix(table(test_data_glm$BAD,prob>c))
+  sensitivity_1=x[2,2]/(x[2,1]+x[2,2])
+  sensitivity=c(sensitivity,sensitivity_1)
+  specificity_1=x[1,1]/(x[1,1]+x[1,2])
+  specificity=c(specificity,specificity_1)
+  if (sensitivity_1>0.50 & specificity_1>0.54){
+    print(c)
+  }
+}
+c2<-cbind(c1,sensitivity,specificity)
+#c 0.2390002
+accuracy<-(133)/(133+66+26)
+sensitivity_1<-33/(26+33)
+specificity_1<-100/(166)
+##roc curve with influential points
+roc(test_data_glm$BAD,prob)
+par(mfrow=c(1,1))
+plot.roc(test_data_glm$BAD,prob)
+
+
+###removing influential points based on cooks distance
+
+cd<-cooks.distance(model4)
+par(mfrow=c(3,1))
+plot(training_data_glm$AGE, cd)
+plot(training_data_glm$DAINC, cd)
+plot(training_data_glm$RES, cd)
+influential <- as.numeric(names(cd)[(cd > (4/dim(training_data_glm)[1]))])
+
+plot(model4)
+
+model5<-glm(BAD~AGE+DAINC+RES,data=training_data_glm[-c(influential),], family="binomial")
+
+par(mfrow=c(2,2))
+plot(model5)
+summary(model5)
+model5_predict<-predict(model5, test_data_glm[,c(15,6,7)])
+prob<-exp(model5_predict)/(1+exp(model5_predict))
+
+
+
+sensitivity<-0
+specificity<-0
+c1<-seq(min(prob),max(prob),0.01)
+for (c in seq(min(prob),max(prob),0.01)){
+  x=as.matrix(table(test_data_glm$BAD,prob>c))
+  sensitivity_1=x[2,2]/(x[2,1]+x[2,2])
+  sensitivity=c(sensitivity,sensitivity_1)
+  specificity_1=x[1,1]/(x[1,1]+x[1,2])
+  specificity=c(specificity,specificity_1)
+  if (sensitivity_1>0.59 & specificity_1>0.59){
+    print(c)
+  }
+}
+cbind(c1, sensitivity,specificity)
+##roc curve without influential points
+par(mfrow=c(2,2))
+roc(test_data_glm$BAD,prob)
+plot.roc(test_data_glm$BAD,prob)
+
+c<-#0.2350002
+accuracy<-(96+35)/(96+35+24+70)
+sensitivity_1<-35/(24+35)
+specificity_1<-96/(96+70)
+
+model51_predict<-predict(model5, training_data_glm[,c(15,6,7)])
+prob<-exp(model51_predict)/(1+exp(model51_predict))
+sensitivity<-0
+specificity<-0
+c1<-seq(min(prob),max(prob),0.01)
+for (c in seq(min(prob),max(prob),0.01)){
+  x=as.matrix(table(training_data_glm$BAD,prob>c))
+  sensitivity_1=x[2,2]/(x[2,1]+x[2,2])
+  sensitivity=c(sensitivity,sensitivity_1)
+  specificity_1=x[1,1]/(x[1,1]+x[1,2])
+  specificity=c(specificity,specificity_1)
+  if (sensitivity_1>0.59 & specificity_1>0.59){
+    print(c)
+  }
+}
+##credit score
+credit_score = 1000*(1-prob)
